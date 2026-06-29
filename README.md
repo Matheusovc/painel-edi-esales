@@ -144,3 +144,102 @@ CREATE TABLE IF NOT EXISTS casos_teste (
 - Prepared statements em todas as queries (`?` placeholders — sem SQL injection)
 - Senha de exclusão validada via `process.env.ADMIN_DELETE_PASSWORD` — nunca exposta ao cliente
 - Nomes de tabelas derivados de enums (nunca de input do usuário)
+
+---
+
+## Como Rodar o Projeto
+
+### Pré-requisitos
+
+| Ferramenta | Versão mínima |
+|------------|---------------|
+| Node.js    | 18+           |
+| npm        | 9+            |
+| MySQL      | 8.0+          |
+
+### 1. Clonar o repositório
+
+```bash
+git clone https://github.com/Matheusovc/painel-edi-esales.git
+cd painel-edi-esales
+```
+
+### 2. Instalar dependências
+
+```bash
+npm install
+```
+
+### 3. Configurar variáveis de ambiente
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` com suas credenciais:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=sua_senha_mysql
+DB_NAME=testes_esales
+ADMIN_DELETE_PASSWORD=senha_para_exclusao_de_regras
+JWT_SECRET=troque_por_uma_string_aleatoria_longa
+```
+
+> **JWT_SECRET**: use qualquer string longa e aleatória. Exemplo de como gerar uma:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+
+### 4. Preparar o banco de dados
+
+Certifique-se de que o MySQL está rodando e o banco `testes_esales` existe.  
+Se precisar criar as tabelas e views base, execute os scripts na ordem:
+
+```bash
+mysql -u root -p testes_esales < Testes_eSales.sql
+mysql -u root -p testes_esales < Views_Dashboard.sql
+```
+
+As tabelas auxiliares (`regras_em_execucao`, `historico_regras`, `casos_teste`, `usuarios`) são criadas automaticamente pelo sistema na primeira vez que a API é chamada — não é necessário criar manualmente.
+
+### 5. Rodar em desenvolvimento
+
+```bash
+npm run dev
+```
+
+Acesse **http://localhost:3000**
+
+Na primeira vez, crie um usuário pela tela de login clicando em **"Criar conta"**.
+
+### 6. Build para produção
+
+```bash
+npm run build
+npm start
+```
+
+### Estrutura de pastas relevante
+
+```
+src/
+├── app/
+│   ├── api/          # Rotas de API (Next.js Route Handlers)
+│   ├── login/        # Página de autenticação
+│   ├── testes/       # Página de regras
+│   ├── listas/       # Página de listas
+│   └── page.tsx      # Dashboard principal
+├── components/
+│   ├── dashboard/    # Cards, gráficos e tabelas do dashboard
+│   ├── layout/       # TopNav, AppShell
+│   ├── testes/       # Modais e tabela de testes
+│   ├── chat/         # Chatbot flutuante
+│   └── ui/           # Componentes base (liquid-glass, shaders, shadcn)
+└── lib/
+    ├── db.ts         # Pool de conexão MySQL (singleton)
+    ├── auth.ts       # JWT (sign/verify)
+    └── migrate.ts    # Criação automática de tabelas
+```
