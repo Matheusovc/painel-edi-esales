@@ -40,6 +40,10 @@ next-env.d.ts
 .playwright-mcp/
 *.png
 *.jpg
+*.mp4
+*.mov
+/public/videos/
+/infor_ediassist/
 
 # Claude Code local config
 .claude/

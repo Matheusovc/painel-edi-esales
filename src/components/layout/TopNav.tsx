@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, FlaskConical, List, Zap, LogOut } from 'lucide-react'
+import { LayoutDashboard, FlaskConical, List, Zap, LogOut, PlayCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GlassEffect } from '@/components/ui/liquid-glass'
+import { VideoModal } from './VideoModal'
 
 const navItems = [
   { href: '/',       label: 'Dashboard', icon: LayoutDashboard },
@@ -15,6 +17,7 @@ const navItems = [
 export function TopNav() {
   const pathname = usePathname()
   const router   = useRouter()
+  const [videoOpen, setVideoOpen] = useState(false)
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -22,6 +25,7 @@ export function TopNav() {
   }
 
   return (
+    <>
     <div className="fixed top-4 left-4 right-4 z-50">
       <GlassEffect
         className="rounded-2xl w-full"
@@ -68,8 +72,15 @@ export function TopNav() {
             })}
           </nav>
 
-          {/* Right side: version badge + logout */}
+          {/* Right side: tutorial button + version + logout */}
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setVideoOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium text-blue-300/80 hover:text-blue-200 hover:bg-blue-500/[0.12] border border-blue-500/20 hover:border-blue-400/30 transition-all duration-200 cursor-pointer"
+            >
+              <PlayCircle className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline whitespace-nowrap">Como usar o EDI Assistant</span>
+            </button>
             <span className="hidden sm:block text-[10px] text-white/25 font-medium">v1.0</span>
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button
@@ -84,5 +95,8 @@ export function TopNav() {
         </div>
       </GlassEffect>
     </div>
+
+    <VideoModal open={videoOpen} onClose={() => setVideoOpen(false)} />
+    </>
   )
 }
