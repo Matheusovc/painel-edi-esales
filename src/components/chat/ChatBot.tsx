@@ -64,6 +64,7 @@ export function ChatBot() {
 
   // summary
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [gargaloDismissed, setGargaloDismissed] = useState(false)
 
   function execKey(r: Teste) {
     return `${r.tabela_origem ?? 'testes_windows'}:${r.id_pk}`
@@ -96,6 +97,7 @@ export function ChatBot() {
   useEffect(() => {
     if (!open) return
     loadSummary()
+    setGargaloDismissed(false)
     setTimeout(() => (tab === 'search' ? searchRef : aiRef).current?.focus(), 60)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -212,7 +214,7 @@ export function ChatBot() {
             <SiriWave variant="wave" size={72} renderScale={2} className="rounded-xl shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white leading-tight">EDI Assistant</p>
-              <p className="text-[11px] text-slate-500">Busque e analise regras EDI</p>
+              <p className="text-[13px] text-slate-500">Busque e analise regras EDI</p>
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -243,36 +245,42 @@ export function ChatBot() {
                 label="reprovadas"
                 color="text-red-400"
               />
-              <span className="ml-auto text-[10px] text-slate-600 shrink-0">hoje</span>
+              <span className="ml-auto text-[12px] text-slate-600 shrink-0">hoje</span>
             </div>
           )}
 
           {/* Gargalo alert */}
-          {gargaloCount > 0 && (
+          {gargaloCount > 0 && !gargaloDismissed && (
             <div className="mx-3 mt-2.5 shrink-0 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2.5">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="text-[11px] font-semibold text-amber-300">
+                <span className="text-[13px] font-semibold text-amber-300 flex-1">
                   {gargaloCount} regra{gargaloCount > 1 ? 's' : ''} em execução há +{threshold}h
                 </span>
+                <button
+                  onClick={() => setGargaloDismissed(true)}
+                  className="w-5 h-5 flex items-center justify-center rounded-md text-amber-400/60 hover:text-amber-200 hover:bg-amber-500/20 transition-all cursor-pointer shrink-0"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
               <div className="space-y-1">
                 {summary?.gargalos.slice(0, 3).map((g, i) => (
                   <div key={i} className="flex items-center gap-1.5">
                     <span className={cn(
-                      'text-[10px] font-bold px-1 py-0.5 rounded uppercase shrink-0',
+                      'text-[11px] font-bold px-1 py-0.5 rounded uppercase shrink-0',
                       g.tabela_origem === 'testes_linux'
                         ? 'bg-orange-500/10 text-orange-400'
                         : 'bg-blue-500/10 text-blue-400'
                     )}>
                       {g.tabela_origem === 'testes_linux' ? 'LNX' : 'WIN'}
                     </span>
-                    <span className="text-[11px] text-slate-400 truncate flex-1">{g.nome_da_regra}</span>
-                    <span className="text-[10px] font-mono text-amber-400 shrink-0">{g.horas}h</span>
+                    <span className="text-[12px] text-slate-400 truncate flex-1">{g.nome_da_regra}</span>
+                    <span className="text-[12px] font-mono text-amber-400 shrink-0">{g.horas}h</span>
                   </div>
                 ))}
                 {gargaloCount > 3 && (
-                  <p className="text-[10px] text-amber-500/60 pt-0.5">+{gargaloCount - 3} mais</p>
+                  <p className="text-[12px] text-amber-500/60 pt-0.5">+{gargaloCount - 3} mais</p>
                 )}
               </div>
             </div>
@@ -291,7 +299,7 @@ export function ChatBot() {
                   setTimeout(() => (t === 'search' ? searchRef : aiRef).current?.focus(), 50)
                 }}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all cursor-pointer',
                   tab === t
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
@@ -316,7 +324,7 @@ export function ChatBot() {
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Buscar por nome, ID, protocolo..."
-                    className="w-full h-9 pl-9 pr-4 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-200 placeholder:text-slate-600 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/30 transition-all"
+                    className="w-full h-9 pl-9 pr-4 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-200 placeholder:text-slate-600 text-base focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/30 transition-all"
                   />
                 </div>
               </div>
@@ -325,14 +333,14 @@ export function ChatBot() {
                 {!query.trim() ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-3 text-slate-600">
                     <Zap className="w-7 h-7 opacity-20" />
-                    <p className="text-xs text-center">
+                    <p className="text-sm text-center">
                       Digite para buscar uma regra<br />e marcar atalhos rapidamente
                     </p>
                   </div>
                 ) : results.length === 0 && !searchLoading ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2 text-slate-600">
                     <Search className="w-6 h-6 opacity-20" />
-                    <p className="text-xs">Nenhuma regra encontrada</p>
+                    <p className="text-sm">Nenhuma regra encontrada</p>
                   </div>
                 ) : (
                   <div className="space-y-1.5">
@@ -353,7 +361,7 @@ export function ChatBot() {
                         >
                           <div className="flex items-start gap-2 mb-2.5">
                             <span className={cn(
-                              'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 mt-0.5',
+                              'inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 mt-0.5',
                               isLinux
                                 ? 'bg-orange-500/10 text-orange-400'
                                 : 'bg-blue-500/10 text-blue-400'
@@ -362,15 +370,15 @@ export function ChatBot() {
                               {isLinux ? 'LNX' : 'WIN'}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[12px] font-medium text-slate-200 leading-tight line-clamp-2" title={row.nome_da_regra}>
+                              <p className="text-[14px] font-medium text-slate-200 leading-tight line-clamp-2" title={row.nome_da_regra}>
                                 {row.nome_da_regra}
                               </p>
-                              {row.id && <span className="text-[10px] font-mono text-slate-600">{row.id}</span>}
+                              {row.id && <span className="text-[12px] font-mono text-slate-600">{row.id}</span>}
                             </div>
                           </div>
 
                           {fb && (
-                            <div className="mb-2 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium text-center">
+                            <div className="mb-2 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[13px] font-medium text-center">
                               {fb}
                             </div>
                           )}
@@ -421,7 +429,7 @@ export function ChatBot() {
                   <div className="py-6 space-y-4">
                     <div className="flex flex-col items-center gap-2 text-slate-600">
                       <Bot className="w-8 h-8 opacity-20" />
-                      <p className="text-xs text-center">
+                      <p className="text-sm text-center">
                         Faça perguntas sobre as regras EDI<br />em linguagem natural
                       </p>
                     </div>
@@ -430,7 +438,7 @@ export function ChatBot() {
                         <button
                           key={s}
                           onClick={() => { setAiInput(s); aiRef.current?.focus() }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-[11px] text-slate-400 bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:text-slate-200 transition-all cursor-pointer leading-snug"
+                          className="w-full text-left px-3 py-2 rounded-xl text-[13px] text-slate-400 bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:text-slate-200 transition-all cursor-pointer leading-snug"
                         >
                           {s}
                         </button>
@@ -450,7 +458,7 @@ export function ChatBot() {
                           </div>
                         )}
                         <div className={cn(
-                          'max-w-[84%] rounded-2xl px-3 py-2 text-[12px]',
+                          'max-w-[84%] rounded-2xl px-3 py-2 text-[14px]',
                           msg.role === 'user'
                             ? 'bg-blue-600/30 text-blue-100 border border-blue-500/20'
                             : msg.error
@@ -468,11 +476,11 @@ export function ChatBot() {
 
                               {msg.rows && msg.rows.length > 0 && (
                                 <div className="mt-2.5 overflow-x-auto rounded-lg border border-white/[0.10]">
-                                  <table className="text-[10px] min-w-full">
+                                  <table className="text-[12px] min-w-full">
                                     <thead>
                                       <tr className="bg-white/[0.05]">
                                         {Object.keys(msg.rows[0]).map(col => (
-                                          <th key={col} className="px-2 py-1.5 text-left text-slate-500 font-semibold whitespace-nowrap uppercase tracking-wide text-[9px]">
+                                          <th key={col} className="px-2 py-1.5 text-left text-slate-500 font-semibold whitespace-nowrap uppercase tracking-wide text-[11px]">
                                             {col}
                                           </th>
                                         ))}
@@ -491,7 +499,7 @@ export function ChatBot() {
                                     </tbody>
                                   </table>
                                   {msg.rows.length > 8 && (
-                                    <p className="text-[10px] text-slate-600 text-center py-1.5 border-t border-white/[0.05]">
+                                    <p className="text-[12px] text-slate-600 text-center py-1.5 border-t border-white/[0.05]">
                                       +{msg.rows.length - 8} resultados adicionais
                                     </p>
                                   )}
@@ -517,7 +525,7 @@ export function ChatBot() {
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendAI()}
                     placeholder="Faça uma pergunta sobre as regras..."
                     disabled={aiLoading}
-                    className="flex-1 h-9 px-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-200 placeholder:text-slate-600 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/30 transition-all disabled:opacity-50"
+                    className="flex-1 h-9 px-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-200 placeholder:text-slate-600 text-[14px] focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/30 transition-all disabled:opacity-50"
                   />
                   <button
                     onClick={sendAI}
@@ -569,8 +577,8 @@ function SummaryChip({ icon, value, label, color }: {
   return (
     <div className="flex items-center gap-1.5">
       {icon}
-      <span className={cn('text-[13px] font-bold font-mono leading-none', color)}>{value}</span>
-      <span className="text-[10px] text-slate-600">{label}</span>
+      <span className={cn('text-[15px] font-bold font-mono leading-none', color)}>{value}</span>
+      <span className="text-[12px] text-slate-600">{label}</span>
     </div>
   )
 }
@@ -589,7 +597,7 @@ function ActionBtn({ active, loading, onClick, icon, label, activeClass, inactiv
       onClick={onClick}
       disabled={loading}
       className={cn(
-        'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[11px] font-medium border transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed',
+        'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[13px] font-medium border transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed',
         active ? activeClass : inactiveClass
       )}
     >

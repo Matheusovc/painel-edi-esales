@@ -32,7 +32,17 @@ vw_resumo_status — status, total, windows, linux, pct
 vw_resumo_por_so — origem('windows'|'linux'), total, aprovados, reprovados, nao_iniciado
 vw_regras_reprovadas — localizacao, id, nome_da_regra, resultado, criticidade
 
-FILTROS TEMPORAIS:
+ATENÇÃO — testes_windows e testes_linux NÃO têm coluna de data. Para filtrar por período use historico_regras.
+
+PADRÃO para "reprovadas/aprovadas esta semana/hoje":
+SELECT DISTINCT t.id_pk, t.nome_da_regra, t.resultado
+FROM testes_linux t
+JOIN historico_regras h ON h.tabela_origem = 'testes_linux' AND h.id_pk_regra = t.id_pk
+WHERE h.campo_alterado = 'resultado' AND h.valor_novo = 'Reprovado'
+  AND YEARWEEK(h.data_hora,1) = YEARWEEK(NOW(),1)
+LIMIT 50
+
+FILTROS TEMPORAIS (só em historico_regras, casos_teste ou regras_em_execucao):
 Hoje: DATE(data_hora) = CURDATE()
 Esta semana: YEARWEEK(data_hora,1) = YEARWEEK(NOW(),1)
 Este mês: MONTH(data_hora)=MONTH(NOW()) AND YEAR(data_hora)=YEAR(NOW())
