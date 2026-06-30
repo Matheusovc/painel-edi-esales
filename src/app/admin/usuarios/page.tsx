@@ -307,10 +307,12 @@ export default function UsuariosPage() {
           { label: 'Ativos', value: ativos.length, color: 'text-emerald-400' },
           { label: 'Inativos', value: inativos.length, color: 'text-slate-500' },
         ].map(s => (
-          <div key={s.label} className="rounded-2xl bg-white/[0.03] border border-white/[0.07] px-5 py-4">
-            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">{s.label}</p>
-            <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
-          </div>
+          <GlassEffect key={s.label} variant="card" className="rounded-2xl w-full">
+            <div className="px-5 py-4">
+              <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">{s.label}</p>
+              <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
+            </div>
+          </GlassEffect>
         ))}
       </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Settings2, Monitor, Terminal, Layers, CheckCircle2, XCircle, Loader2, Clock } from 'lucide-react'
 import { TestesTable } from '@/components/testes/TestesTable'
+import { GlassEffect } from '@/components/ui/liquid-glass'
 import { cn } from '@/lib/utils'
 import type { DashboardKpi } from '@/types'
 
@@ -37,13 +38,13 @@ export default function RegrasPage() {
         const k = d.kpi
         if (!k) return
         setStats({
-          total: k.total_regras,
-          aprovados: k.aprovados,
-          reprovados: k.reprovados,
-          em_andamento: k.em_andamento,
-          nao_iniciado: k.nao_iniciado,
-          pct_aprovados: k.pct_aprovados,
-          pct_reprovados: k.pct_reprovados,
+          total: Number(k.total_regras),
+          aprovados: Number(k.aprovados),
+          reprovados: Number(k.reprovados),
+          em_andamento: Number(k.em_andamento),
+          nao_iniciado: Number(k.nao_iniciado),
+          pct_aprovados: Number(k.pct_aprovados),
+          pct_reprovados: Number(k.pct_reprovados),
         })
       })
       .catch(() => {})
@@ -71,10 +72,12 @@ export default function RegrasPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {statsLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-2xl bg-white/[0.03] border border-white/[0.07] px-5 py-4 animate-pulse">
-              <div className="h-3 w-16 bg-white/[0.06] rounded mb-3" />
-              <div className="h-7 w-10 bg-white/[0.08] rounded" />
-            </div>
+            <GlassEffect key={i} variant="card" className="rounded-2xl w-full">
+              <div className="px-5 py-4 animate-pulse">
+                <div className="h-3 w-16 bg-white/[0.06] rounded mb-3" />
+                <div className="h-7 w-10 bg-white/[0.08] rounded" />
+              </div>
+            </GlassEffect>
           ))
         ) : stats ? (
           <>
@@ -144,22 +147,24 @@ export default function RegrasPage() {
   )
 }
 
-function StatCard({ label, value, icon, color, border, sub }: {
+function StatCard({ label, value, icon, color, sub }: {
   label: string
   value: number
   icon: React.ReactNode
   color: string
-  border: string
+  border?: string
   sub?: string
 }) {
   return (
-    <div className={`rounded-2xl bg-white/[0.03] border ${border} px-5 py-4`}>
-      <div className={`flex items-center gap-2 mb-2 ${color}`}>
-        {icon}
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{label}</span>
+    <GlassEffect variant="card" className="rounded-2xl w-full">
+      <div className="px-5 py-4">
+        <div className={`flex items-center gap-2 mb-2 ${color}`}>
+          {icon}
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{label}</span>
+        </div>
+        <p className={`text-2xl font-bold font-mono ${color}`}>{value.toLocaleString('pt-BR')}</p>
+        {sub && <p className="text-xs text-slate-600 mt-0.5">{sub}</p>}
       </div>
-      <p className={`text-2xl font-bold font-mono ${color}`}>{value.toLocaleString('pt-BR')}</p>
-      {sub && <p className="text-xs text-slate-600 mt-0.5">{sub}</p>}
-    </div>
+    </GlassEffect>
   )
 }
