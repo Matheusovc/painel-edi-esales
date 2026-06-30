@@ -64,14 +64,25 @@ export async function ensureTables(): Promise<void> {
     `)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
-        id         INT AUTO_INCREMENT PRIMARY KEY,
-        nome       VARCHAR(100) NOT NULL,
-        email      VARCHAR(200) NOT NULL UNIQUE,
-        senha_hash VARCHAR(255) NOT NULL,
-        criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+        id            INT AUTO_INCREMENT PRIMARY KEY,
+        nome          VARCHAR(100) NOT NULL,
+        email         VARCHAR(200) NOT NULL UNIQUE,
+        senha_hash    VARCHAR(255) NOT NULL,
+        role          ENUM('admin','usuario') DEFAULT 'usuario',
+        ativo         TINYINT(1) DEFAULT 1,
+        criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_email (email)
       ) CHARACTER SET utf8mb4
     `)
+    // Migrate existing usuarios table — add columns if missing
+    for (const sql of [
+      "ALTER TABLE usuarios ADD COLUMN role ENUM('admin','usuario') DEFAULT 'usuario'",
+      "ALTER TABLE usuarios ADD COLUMN ativo TINYINT(1) DEFAULT 1",
+      "ALTER TABLE usuarios ADD COLUMN atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    ]) {
+      try { await pool.query(sql) } catch { /* column already exists */ }
+    }
   } catch (e) {
     console.error('[migrate] Error creating tables:', e)
   }
