@@ -30,16 +30,32 @@ export async function POST(req: NextRequest) {
     const { tabela_origem, id_pk_regra, titulo, categoryId, stageId, comment } = body
 
     if (!tabela_origem || !id_pk_regra || !titulo || !categoryId) {
-      return NextResponse.json({ error: 'Campos obrigatórios: tabela_origem, id_pk_regra, titulo, categoryId' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Campos obrigatórios: tabela_origem, id_pk_regra, titulo, categoryId' },
+        { status: 400 }
+      )
     }
 
-    const dealId = await createDeal({ title: titulo, categoryId, stageId, comment })
+    const rawDealId = await createDeal({
+      title: String(titulo),
+      categoryId: Number(categoryId),
+      stageId: stageId ?? undefined,
+      comment: comment ?? undefined,
+    })
+
+    const dealId = Number(rawDealId)
+    if (!dealId || isNaN(dealId)) {
+      return NextResponse.json(
+        { error: `Bitrix não retornou um ID de deal válido (recebido: ${JSON.stringify(rawDealId)}). Verifique se o webhook tem permissão para criar deals em CRM.` },
+        { status: 500 }
+      )
+    }
 
     await pool.execute(
       `INSERT INTO bitrix_cards (tabela_origem, id_pk_regra, deal_id, titulo)
        VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE deal_id = VALUES(deal_id), titulo = VALUES(titulo), status = 'aberto', atualizado_em = NOW()`,
-      [tabela_origem, id_pk_regra, dealId, titulo]
+      [String(tabela_origem), Number(id_pk_regra), dealId, String(titulo)]
     )
 
     return NextResponse.json({ ok: true, deal_id: dealId })
@@ -59,11 +75,14 @@ export async function PUT(req: NextRequest) {
     const fields: Record<string, unknown> = {}
     if (titulo) fields.TITLE = titulo
 
-    if (Object.keys(fields).length > 0) await updateDeal(deal_id, fields)
-    if (comment) await addComment(deal_id, comment)
+    if (Object.keys(fields).length > 0) await updateDeal(Number(deal_id), fields)
+    if (comment) await addComment(Number(deal_id), String(comment))
 
     if (titulo) {
-      await pool.execute('UPDATE bitrix_cards SET titulo = ?, atualizado_em = NOW() WHERE deal_id = ?', [titulo, deal_id])
+      await pool.execute(
+        'UPDATE bitrix_cards SET titulo = ?, atualizado_em = NOW() WHERE deal_id = ?',
+        [String(titulo), Number(deal_id)]
+      )
     }
 
     return NextResponse.json({ ok: true })
@@ -72,4 +91,3 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
-

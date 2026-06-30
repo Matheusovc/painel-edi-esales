@@ -10,6 +10,10 @@ interface GlassEffectProps {
   target?: string;
   /** 'nav' = blue-tinted floating navbar style; 'card' = dark neutral content card */
   variant?: "nav" | "card";
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  role?: string;
+  tabIndex?: number;
+  disabled?: boolean;
 }
 
 const VARIANTS = {
@@ -58,19 +62,28 @@ export const GlassEffect: React.FC<GlassEffectProps> = ({
   href,
   target = "_blank",
   variant = "nav",
+  onClick,
+  role,
+  tabIndex,
+  disabled,
 }) => {
   const v = VARIANTS[variant];
 
   const glassStyle: React.CSSProperties = {
     boxShadow: v.shadow,
     transitionTimingFunction: "cubic-bezier(0.175, 0.885, 0.32, 2.2)",
+    opacity: disabled ? 0.5 : 1,
+    pointerEvents: disabled ? "none" : undefined,
     ...style,
   };
 
   const content = (
     <div
-      className={`relative flex overflow-hidden transition-all duration-500 ${v.cursor} ${className}`}
+      className={`relative flex overflow-hidden transition-all duration-500 ${onClick || href ? "cursor-pointer" : v.cursor} ${className}`}
       style={glassStyle}
+      onClick={onClick}
+      role={role}
+      tabIndex={tabIndex}
     >
       {/* Layer 1: backdrop blur + SVG distortion */}
       <div

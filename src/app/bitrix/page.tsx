@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import {
   Layers, CheckCircle2, XCircle, Loader2, Plus, RefreshCw,
   ExternalLink, MessageSquarePlus, X, AlertTriangle, ChevronDown,
 } from 'lucide-react'
+import { GlassEffect } from '@/components/ui/liquid-glass'
 
 interface BitrixCard {
   id: number
@@ -34,18 +35,18 @@ const STATUS_COLOR: Record<string, string> = {
   Aguardando: 'text-blue-400 bg-blue-500/10',
 }
 
-export default function BitrixPage() {
-  const [tab, setTab] = useState<Tab>('cards')
-  const [connectionOk, setConnectionOk] = useState<boolean | null>(null)
-  const [connectionMsg, setConnectionMsg] = useState('')
-  const [connectionLoading, setConnectionLoading] = useState(true)
-
-  const [cards, setCards] = useState<BitrixCard[]>([])
-  const [cardsLoading, setCardsLoading] = useState(true)
-
-  const [categories, setCategories] = useState<Category[]>([])
-
-  // Create form
+/* ─── Form isolado — não re-renderiza o resto da página ao digitar ─── */
+const CreateCardForm = memo(function CreateCardForm({
+  categories,
+  connectionOk,
+  connectionLoading,
+  onCreated,
+}: {
+  categories: Category[]
+  connectionOk: boolean | null
+  connectionLoading: boolean
+  onCreated: () => void
+}) {
   const [form, setForm] = useState({
     tabela_origem: 'testes_linux',
     id_pk_regra: '',
@@ -55,15 +56,180 @@ export default function BitrixPage() {
     comment: '',
   })
   const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState('')
-  const [createSuccess, setCreateSuccess] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
-  // Comment modal
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.titulo.trim() || !form.id_pk_regra || !form.categoryId) {
+      setError('Preencha: ID da regra, título e categoria.')
+      return
+    }
+    setCreating(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch('/api/bitrix/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tabela_origem: form.tabela_origem,
+          id_pk_regra: Number(form.id_pk_regra),
+          titulo: form.titulo.trim(),
+          categoryId: Number(form.categoryId),
+          stageId: form.stageId.trim() || undefined,
+          comment: form.comment.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error ?? 'Erro desconhecido')
+      setSuccess(`Card criado! Deal ID: ${data.deal_id}`)
+      setForm(f => ({ ...f, id_pk_regra: '', titulo: '', stageId: '', comment: '' }))
+      onCreated()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="max-w-xl">
+      <div className="rounded-2xl bg-white/[0.04] border border-white/[0.08] p-6 space-y-5">
+        <h2 className="text-base font-semibold text-slate-200">Criar novo card no Bitrix24</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+
+          <Field label="Origem da regra">
+            <div className="relative">
+              <select
+                value={form.tabela_origem}
+                onChange={e => setForm(f => ({ ...f, tabela_origem: e.target.value }))}
+                className="w-full appearance-none bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500/60 cursor-pointer pr-9"
+              >
+                <option value="testes_linux">Linux</option>
+                <option value="testes_windows">Windows</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            </div>
+          </Field>
+
+          <Field label="ID da regra (id_pk)">
+            <input
+              type="number"
+              min={1}
+              value={form.id_pk_regra}
+              onChange={e => setForm(f => ({ ...f, id_pk_regra: e.target.value }))}
+              placeholder="Ex: 42"
+              className="w-full bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/60"
+            />
+          </Field>
+
+          <Field label="Título do card">
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
+              placeholder="Ex: [EDI] Regra TOTVS - Revisão Q3"
+              className="w-full bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/60"
+            />
+          </Field>
+
+          <Field label="Categoria Bitrix">
+            {categories.length > 0 ? (
+              <div className="relative">
+                <select
+                  value={form.categoryId}
+                  onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                  className="w-full appearance-none bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500/60 cursor-pointer pr-9"
+                >
+                  <option value="">Selecione…</option>
+                  {categories.map(c => (
+                    <option key={c.ID} value={c.ID}>{c.NAME}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+              </div>
+            ) : (
+              <input
+                type="number"
+                min={0}
+                value={form.categoryId}
+                onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                placeholder="ID numérico da categoria"
+                className="w-full bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/60"
+              />
+            )}
+          </Field>
+
+          <Field label="Stage ID (opcional)">
+            <input
+              type="text"
+              value={form.stageId}
+              onChange={e => setForm(f => ({ ...f, stageId: e.target.value }))}
+              placeholder="Ex: C4:NEW"
+              className="w-full bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/60"
+            />
+          </Field>
+
+          <Field label="Comentário inicial (opcional)">
+            <textarea
+              value={form.comment}
+              onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
+              rows={3}
+              placeholder="Descreva o contexto do card…"
+              className="w-full bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/60 resize-none"
+            />
+          </Field>
+
+          {error && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/[0.08] border border-red-500/20 text-sm text-red-300">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 text-sm text-emerald-300">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              {success}
+            </div>
+          )}
+
+          <GlassEffect variant="nav" className="rounded-xl w-full" disabled={creating || !connectionOk}>
+            <button
+              type="submit"
+              disabled={creating || !connectionOk}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-transparent border-0 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {creating ? 'Criando…' : 'Criar Card'}
+            </button>
+          </GlassEffect>
+
+          {!connectionOk && !connectionLoading && (
+            <p className="text-xs text-amber-400/70 text-center">
+              Bitrix24 desconectado — configure o webhook para criar cards
+            </p>
+          )}
+        </form>
+      </div>
+    </div>
+  )
+})
+
+/* ─── Página principal ─── */
+export default function BitrixPage() {
+  const [tab, setTab] = useState<Tab>('cards')
+  const [connectionOk, setConnectionOk] = useState<boolean | null>(null)
+  const [connectionMsg, setConnectionMsg] = useState('')
+  const [connectionLoading, setConnectionLoading] = useState(true)
+  const [cards, setCards] = useState<BitrixCard[]>([])
+  const [cardsLoading, setCardsLoading] = useState(true)
+  const [categories, setCategories] = useState<Category[]>([])
+
   const [commentModal, setCommentModal] = useState<{ card: BitrixCard } | null>(null)
   const [commentText, setCommentText] = useState('')
   const [commentSending, setCommentSending] = useState(false)
-
-  // Close confirm
   const [closeTarget, setCloseTarget] = useState<BitrixCard | null>(null)
   const [closeSending, setCloseSending] = useState(false)
 
@@ -105,9 +271,7 @@ export default function BitrixPage() {
       const res = await fetch('/api/bitrix/categories')
       const data = await res.json()
       if (data.items) setCategories(data.items)
-    } catch {
-      // ignore — categories are optional
-    }
+    } catch { /* ignore */ }
   }, [])
 
   useEffect(() => {
@@ -115,41 +279,6 @@ export default function BitrixPage() {
     loadCards()
     loadCategories()
   }, [checkConnection, loadCards, loadCategories])
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.titulo.trim() || !form.id_pk_regra || !form.categoryId) {
-      setCreateError('Preencha: ID da regra, título e categoria.')
-      return
-    }
-    setCreating(true)
-    setCreateError('')
-    setCreateSuccess('')
-    try {
-      const res = await fetch('/api/bitrix/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tabela_origem: form.tabela_origem,
-          id_pk_regra: Number(form.id_pk_regra),
-          titulo: form.titulo.trim(),
-          categoryId: Number(form.categoryId),
-          stageId: form.stageId.trim() || undefined,
-          comment: form.comment.trim() || undefined,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok || data.error) throw new Error(data.error ?? 'Erro desconhecido')
-      setCreateSuccess(`Card criado com sucesso! Deal ID: ${data.deal_id}`)
-      setForm(f => ({ ...f, id_pk_regra: '', titulo: '', stageId: '', comment: '' }))
-      loadCards()
-      setTab('cards')
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setCreating(false)
-    }
-  }
 
   async function sendComment() {
     if (!commentModal || !commentText.trim()) return
@@ -198,13 +327,12 @@ export default function BitrixPage() {
             </h1>
             <p className="text-sm text-slate-500 mt-1">Gerencie cards de negócio vinculados às regras EDI</p>
           </div>
-          <button
-            onClick={() => { checkConnection(); loadCards() }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-white/[0.06] border border-white/[0.06] transition-all cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Atualizar
-          </button>
+          <GlassEffect variant="nav" className="rounded-xl" onClick={() => { checkConnection(); loadCards() }}>
+            <div className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-200">
+              <RefreshCw className="w-4 h-4" />
+              Atualizar
+            </div>
+          </GlassEffect>
         </div>
       </div>
 
@@ -220,8 +348,7 @@ export default function BitrixPage() {
           ? <Loader2 className="w-4 h-4 animate-spin shrink-0" />
           : connectionOk
             ? <CheckCircle2 className="w-4 h-4 shrink-0" />
-            : <XCircle className="w-4 h-4 shrink-0" />
-        }
+            : <XCircle className="w-4 h-4 shrink-0" />}
         <span>{connectionLoading ? 'Verificando conexão com Bitrix24…' : connectionMsg}</span>
         {!connectionLoading && !connectionOk && (
           <span className="ml-auto text-xs text-red-400/70">
@@ -231,19 +358,18 @@ export default function BitrixPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.07] w-fit">
+      <div className="flex gap-2">
         {([['cards', 'Cards Existentes'], ['novo', 'Novo Card']] as [Tab, string][]).map(([key, label]) => (
-          <button
+          <GlassEffect
             key={key}
+            variant={tab === key ? 'nav' : 'card'}
+            className="rounded-xl"
             onClick={() => setTab(key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-              tab === key
-                ? 'bg-blue-500/20 text-blue-200 border border-blue-400/20'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
           >
-            {label}
-          </button>
+            <div className={`px-5 py-2.5 text-sm font-semibold ${tab === key ? 'text-blue-200' : 'text-slate-400'}`}>
+              {label}
+            </div>
+          </GlassEffect>
         ))}
       </div>
 
@@ -258,14 +384,13 @@ export default function BitrixPage() {
           ) : cards.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-slate-600">
               <Layers className="w-8 h-8 mb-3 opacity-30" />
-              <p className="text-sm">Nenhum card criado ainda.</p>
-              <button
-                onClick={() => setTab('novo')}
-                className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-blue-400 hover:text-blue-200 border border-blue-500/20 hover:bg-blue-500/10 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                Criar primeiro card
-              </button>
+              <p className="text-sm mb-5">Nenhum card criado ainda.</p>
+              <GlassEffect variant="nav" className="rounded-xl" onClick={() => setTab('novo')}>
+                <div className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-blue-200">
+                  <Plus className="w-4 h-4" />
+                  Criar primeiro card
+                </div>
+              </GlassEffect>
             </div>
           ) : (
             <>
@@ -288,126 +413,14 @@ export default function BitrixPage() {
         </div>
       )}
 
-      {/* TAB: Novo card */}
+      {/* TAB: Novo card — componente isolado, re-renders não afetam o resto */}
       {tab === 'novo' && (
-        <div className="max-w-xl">
-          <div className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-6 space-y-5">
-            <h2 className="text-base font-semibold text-slate-200">Criar novo card no Bitrix24</h2>
-
-            <form onSubmit={handleCreate} className="space-y-4">
-
-              <Field label="Origem da regra">
-                <div className="relative">
-                  <select
-                    value={form.tabela_origem}
-                    onChange={e => setForm(f => ({ ...f, tabela_origem: e.target.value }))}
-                    className="w-full appearance-none bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500/50 cursor-pointer pr-9"
-                  >
-                    <option value="testes_linux">Linux</option>
-                    <option value="testes_windows">Windows</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-                </div>
-              </Field>
-
-              <Field label="ID da regra (id_pk)">
-                <input
-                  type="number"
-                  min={1}
-                  value={form.id_pk_regra}
-                  onChange={e => setForm(f => ({ ...f, id_pk_regra: e.target.value }))}
-                  placeholder="Ex: 42"
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50"
-                />
-              </Field>
-
-              <Field label="Título do card">
-                <input
-                  type="text"
-                  value={form.titulo}
-                  onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
-                  placeholder="Ex: [EDI] Regra TOTVS - Revisão Q3"
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50"
-                />
-              </Field>
-
-              <Field label="Categoria Bitrix">
-                {categories.length > 0 ? (
-                  <div className="relative">
-                    <select
-                      value={form.categoryId}
-                      onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                      className="w-full appearance-none bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500/50 cursor-pointer pr-9"
-                    >
-                      <option value="">Selecione…</option>
-                      {categories.map(c => (
-                        <option key={c.ID} value={c.ID}>{c.NAME}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-                  </div>
-                ) : (
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.categoryId}
-                    onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                    placeholder="ID numérico da categoria"
-                    className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50"
-                  />
-                )}
-              </Field>
-
-              <Field label="Stage ID (opcional)">
-                <input
-                  type="text"
-                  value={form.stageId}
-                  onChange={e => setForm(f => ({ ...f, stageId: e.target.value }))}
-                  placeholder="Ex: C4:NEW"
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50"
-                />
-              </Field>
-
-              <Field label="Comentário inicial (opcional)">
-                <textarea
-                  value={form.comment}
-                  onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
-                  rows={3}
-                  placeholder="Descreva o contexto do card…"
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50 resize-none"
-                />
-              </Field>
-
-              {createError && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/[0.08] border border-red-500/20 text-sm text-red-300">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  {createError}
-                </div>
-              )}
-              {createSuccess && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 text-sm text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  {createSuccess}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={creating || !connectionOk}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-all cursor-pointer"
-              >
-                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {creating ? 'Criando…' : 'Criar Card'}
-              </button>
-
-              {!connectionOk && !connectionLoading && (
-                <p className="text-xs text-amber-400/70 text-center">
-                  Bitrix24 desconectado — configure o webhook para criar cards
-                </p>
-              )}
-            </form>
-          </div>
-        </div>
+        <CreateCardForm
+          categories={categories}
+          connectionOk={connectionOk}
+          connectionLoading={connectionLoading}
+          onCreated={() => { loadCards(); setTab('cards') }}
+        />
       )}
 
       {/* Comment Modal */}
@@ -422,23 +435,24 @@ export default function BitrixPage() {
             rows={4}
             autoFocus
             placeholder="Digite o comentário…"
-            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50 resize-none"
+            className="w-full bg-slate-800/70 border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/60 resize-none"
           />
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => setCommentModal(null)}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm text-slate-400 hover:text-slate-200 border border-white/[0.07] hover:bg-white/[0.04] transition-all cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={sendComment}
-              disabled={commentSending || !commentText.trim()}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-all cursor-pointer"
-            >
-              {commentSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquarePlus className="w-4 h-4" />}
-              Enviar
-            </button>
+          <div className="flex gap-3 mt-4">
+            <GlassEffect variant="card" className="rounded-xl flex-1" onClick={() => setCommentModal(null)}>
+              <div className="flex items-center justify-center px-4 py-2.5 text-sm font-medium text-slate-300">
+                Cancelar
+              </div>
+            </GlassEffect>
+            <GlassEffect variant="nav" className="rounded-xl flex-1" disabled={commentSending || !commentText.trim()}>
+              <button
+                onClick={sendComment}
+                disabled={commentSending || !commentText.trim()}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-transparent border-0 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {commentSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquarePlus className="w-4 h-4" />}
+                Enviar
+              </button>
+            </GlassEffect>
           </div>
         </Modal>
       )}
@@ -446,25 +460,27 @@ export default function BitrixPage() {
       {/* Close Confirm Modal */}
       {closeTarget && (
         <Modal onClose={() => setCloseTarget(null)} title="Fechar card">
-          <p className="text-sm text-slate-400 mb-4">
-            Tem certeza que deseja marcar o deal <span className="text-white font-semibold">#{closeTarget.deal_id}</span> como fechado no Bitrix24?
+          <p className="text-sm text-slate-400 mb-2">
+            Tem certeza que deseja marcar o deal{' '}
+            <span className="text-white font-semibold">#{closeTarget.deal_id}</span> como fechado?
           </p>
-          <p className="text-xs text-slate-600 mb-4">{closeTarget.titulo}</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCloseTarget(null)}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm text-slate-400 hover:text-slate-200 border border-white/[0.07] hover:bg-white/[0.04] transition-all cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleClose}
-              disabled={closeSending}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white transition-all cursor-pointer"
-            >
-              {closeSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-              Fechar deal
-            </button>
+          <p className="text-xs text-slate-600 mb-5">{closeTarget.titulo}</p>
+          <div className="flex gap-3">
+            <GlassEffect variant="card" className="rounded-xl flex-1" onClick={() => setCloseTarget(null)}>
+              <div className="flex items-center justify-center px-4 py-2.5 text-sm font-medium text-slate-300">
+                Cancelar
+              </div>
+            </GlassEffect>
+            <GlassEffect variant="nav" className="rounded-xl flex-1" disabled={closeSending}>
+              <button
+                onClick={handleClose}
+                disabled={closeSending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-300 bg-transparent border-0 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {closeSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                Fechar deal
+              </button>
+            </GlassEffect>
           </div>
         </Modal>
       )}
@@ -517,22 +533,16 @@ function CardsTable({ cards, onComment, onClose, closed }: {
                     <ExternalLink className="w-3 h-3 text-slate-600" />
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
-                  {card.nome_regra ? (
-                    <span title={card.nome_regra} className="block max-w-[180px] truncate">{card.nome_regra}</span>
-                  ) : (
-                    <span className="text-slate-600">id_pk {card.id_pk_regra}</span>
-                  )}
+                <td className="px-4 py-3 text-slate-400 text-xs">
+                  {card.nome_regra
+                    ? <span title={card.nome_regra} className="block max-w-[180px] truncate">{card.nome_regra}</span>
+                    : <span className="text-slate-600">id_pk {card.id_pk_regra}</span>}
                 </td>
-                <td className="px-4 py-3 text-slate-200 max-w-[200px] truncate" title={card.titulo}>
-                  {card.titulo}
-                </td>
+                <td className="px-4 py-3 text-slate-200 max-w-[200px] truncate" title={card.titulo}>{card.titulo}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  {card.resultado ? (
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLOR[card.resultado] ?? 'text-slate-400 bg-white/[0.04]'}`}>
-                      {card.resultado}
-                    </span>
-                  ) : <span className="text-slate-600 text-xs">—</span>}
+                  {card.resultado
+                    ? <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLOR[card.resultado] ?? 'text-slate-400 bg-white/[0.04]'}`}>{card.resultado}</span>
+                    : <span className="text-slate-600 text-xs">—</span>}
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
                   {card.tabela_origem === 'testes_linux' ? 'Linux' : 'Windows'}
@@ -543,20 +553,16 @@ function CardsTable({ cards, onComment, onClose, closed }: {
                 <td className="px-4 py-3">
                   {!closed && (
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => onComment?.(card)}
-                        title="Adicionar comentário"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-blue-300 hover:bg-blue-500/10 transition-all cursor-pointer"
-                      >
-                        <MessageSquarePlus className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onClose?.(card)}
-                        title="Fechar card"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-300 hover:bg-red-500/10 transition-all cursor-pointer"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
+                      <GlassEffect variant="card" className="rounded-lg" onClick={() => onComment?.(card)}>
+                        <div className="p-2 text-blue-300" title="Adicionar comentário">
+                          <MessageSquarePlus className="w-3.5 h-3.5" />
+                        </div>
+                      </GlassEffect>
+                      <GlassEffect variant="card" className="rounded-lg" onClick={() => onClose?.(card)}>
+                        <div className="p-2 text-red-300" title="Fechar card">
+                          <XCircle className="w-3.5 h-3.5" />
+                        </div>
+                      </GlassEffect>
                     </div>
                   )}
                 </td>
@@ -582,14 +588,18 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-[#0f1520] border border-white/[0.1] p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-slate-200">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/[0.06] transition-all cursor-pointer">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
+      <div className="relative z-10 w-full max-w-md">
+        <GlassEffect variant="card" className="rounded-2xl w-full">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-slate-200">{title}</h3>
+              <GlassEffect variant="card" className="rounded-lg" onClick={onClose}>
+                <div className="p-1.5 text-slate-400"><X className="w-4 h-4" /></div>
+              </GlassEffect>
+            </div>
+            {children}
+          </div>
+        </GlassEffect>
       </div>
     </div>
   )

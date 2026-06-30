@@ -24,8 +24,11 @@ async function call<T>(method: string, params: Record<string, unknown> = {}): Pr
     signal: AbortSignal.timeout(10_000),
   })
   const json = await res.json()
-  if (json.error) {
-    throw new Error(json.error_description ?? json.error)
+  if (json.error !== undefined && json.error !== null) {
+    throw new Error(`[Bitrix] ${json.error_description || json.error || 'Access denied'}`)
+  }
+  if (json.result === undefined) {
+    throw new Error(`[Bitrix] Resposta inesperada: ${JSON.stringify(json)}`)
   }
   return json.result as T
 }
