@@ -3,15 +3,16 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, FlaskConical, List, Zap, LogOut, PlayCircle } from 'lucide-react'
+import { LayoutDashboard, FlaskConical, List, Zap, LogOut, PlayCircle, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GlassEffect } from '@/components/ui/liquid-glass'
 import { VideoModal } from './VideoModal'
 
 const navItems = [
-  { href: '/',       label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/testes', label: 'Testes',    icon: FlaskConical    },
-  { href: '/listas', label: 'Listas',    icon: List            },
+  { href: '/',        label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/testes',  label: 'Testes',    icon: FlaskConical    },
+  { href: '/listas',  label: 'Listas',    icon: List            },
+  { href: '/bitrix',  label: 'Bitrix',    icon: Layers          },
 ]
 
 export function TopNav() {

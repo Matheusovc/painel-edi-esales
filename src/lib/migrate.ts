@@ -49,6 +49,20 @@ export async function ensureTables(): Promise<void> {
       ) CHARACTER SET utf8mb4
     `)
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS bitrix_cards (
+        id            INT AUTO_INCREMENT PRIMARY KEY,
+        tabela_origem VARCHAR(20)  NOT NULL,
+        id_pk_regra   INT          NOT NULL,
+        deal_id       INT          NOT NULL,
+        titulo        VARCHAR(500) NULL,
+        status        ENUM('aberto','fechado') DEFAULT 'aberto',
+        criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_regra (tabela_origem, id_pk_regra),
+        INDEX idx_deal (deal_id)
+      ) CHARACTER SET utf8mb4
+    `)
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id         INT AUTO_INCREMENT PRIMARY KEY,
         nome       VARCHAR(100) NOT NULL,
