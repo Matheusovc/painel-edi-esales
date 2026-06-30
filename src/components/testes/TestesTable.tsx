@@ -17,15 +17,19 @@ import type { Teste, Listas, ExecucaoRegra } from '@/types'
 
 const RESULTADOS = ['Aprovado', 'Reprovado', 'Em Andamento', 'Aguardando Ação', 'Volumetria', 'Não Iniciado']
 
-interface Props { os: 'windows' | 'linux' | 'all' }
+interface Props {
+  os: 'windows' | 'linux' | 'all'
+  hideExecucao?: boolean
+}
 
-export function TestesTable({ os }: Props) {
+export function TestesTable({ os, hideExecucao = false }: Props) {
   const [rows, setRows] = useState<Teste[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('__all__')
   const [protocoloFilter, setProtocoloFilter] = useState('__all__')
+  const [tipoFilter, setTipoFilter] = useState('__all__')
   const [loading, setLoading] = useState(true)
   const [listas, setListas] = useState<Listas>({})
   const [activeRules, setActiveRules] = useState<Set<string>>(new Set())
@@ -67,18 +71,20 @@ export function TestesTable({ os }: Props) {
       if (search) params.set('search', search)
       if (statusFilter !== '__all__') params.set('status', statusFilter)
       if (protocoloFilter !== '__all__') params.set('protocolo', protocoloFilter)
+      if (tipoFilter !== '__all__') params.set('tipo', tipoFilter)
       const res = await fetch(`/api/testes?${params}`)
       const json = await res.json()
       setRows(json.data ?? [])
       setTotal(json.total ?? 0)
     } catch { setRows([]) }
     finally { setLoading(false) }
-  }, [os, page, search, statusFilter, protocoloFilter])
+  }, [os, page, search, statusFilter, protocoloFilter, tipoFilter])
 
-  useEffect(() => { setPage(1) }, [os, search, statusFilter, protocoloFilter])
+  useEffect(() => { setPage(1) }, [os, search, statusFilter, protocoloFilter, tipoFilter])
   useEffect(() => { fetchData() }, [fetchData])
 
   const protocolos = listas['protocolos'] ?? []
+  const tipos = listas['tipos_de_regra'] ?? []
 
   function resolveTabela(row: Teste): 'testes_windows' | 'testes_linux' {
     if (row.tabela_origem) return row.tabela_origem
@@ -153,6 +159,16 @@ export function TestesTable({ os }: Props) {
             {protocolos.map((p) => <option key={p} value={p} className="bg-white dark:bg-[#0D1321]">{p}</option>)}
           </select>
         )}
+        {tipos.length > 0 && (
+          <select
+            className="h-9 px-3 rounded-xl text-sm bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.07] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50 appearance-none cursor-pointer"
+            value={tipoFilter}
+            onChange={(e) => setTipoFilter(e.target.value)}
+          >
+            <option value="__all__" className="bg-white dark:bg-[#0D1321]">Tipo</option>
+            {tipos.map((t) => <option key={t} value={t} className="bg-white dark:bg-[#0D1321]">{t}</option>)}
+          </select>
+        )}
 
         <button
           onClick={() => setNovaOpen(true)}
@@ -180,7 +196,7 @@ export function TestesTable({ os }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
-                  {['Iniciar', os === 'all' ? 'SO' : null, 'ID', 'Nome da Regra', 'Protocolo', 'Tipo', 'Executor', 'Status', 'Versão', ''].filter(Boolean).map((h) => (
+                  {[hideExecucao ? null : 'Iniciar', os === 'all' ? 'SO' : null, 'ID', 'Nome da Regra', 'Protocolo', 'Tipo', 'Executor', 'Status', 'Versão', ''].filter(Boolean).map((h) => (
                     <th key={h as string} className="px-3 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
@@ -206,20 +222,22 @@ export function TestesTable({ os }: Props) {
                       )}
                     >
                       {/* Iniciar checkbox */}
-                      <td className="px-3 py-3">
-                        <label className="flex items-center gap-1.5 cursor-pointer group/check">
-                          {isChecking ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                          ) : (
-                            <input
-                              type="checkbox"
-                              checked={isActive}
-                              onChange={() => handleToggleExecucao(row)}
-                              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500/50 cursor-pointer accent-blue-500"
-                            />
-                          )}
-                        </label>
-                      </td>
+                      {!hideExecucao && (
+                        <td className="px-3 py-3">
+                          <label className="flex items-center gap-1.5 cursor-pointer group/check">
+                            {isChecking ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={isActive}
+                                onChange={() => handleToggleExecucao(row)}
+                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500/50 cursor-pointer accent-blue-500"
+                              />
+                            )}
+                          </label>
+                        </td>
+                      )}
 
                       {/* SO column (only in Todos mode) */}
                       {os === 'all' && (
